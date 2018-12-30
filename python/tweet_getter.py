@@ -1,9 +1,22 @@
-from abc import ABCMeta, abstractmethod  # for using abstrach base class
-from requests_oauthlib import OAuth1Session
-import json
-import datetime, time, sys
+'''
+provide 1 parent class and 2 child classes to extract tweets from Twitter
+Standard search API.
+
+Notes
+-----
+About Twitter Standard search API
+    requests / 15-min (user auth) : 180
+    requests / 15-min (app auth) : 450
+'''
+
 
 from typing import Tuple
+from abc import ABCMeta, abstractmethod  # for using abstrach base class
+import datetime, time, sys
+
+import json
+from requests_oauthlib import OAuth1Session
+
 
 class TweetsGetter(object):
     '''
@@ -54,7 +67,9 @@ class TweetsGetter(object):
         Parameters
         ----------
         total : int, default -1
-            count of tweets needed
+            number of tweets to collect
+            if -1, collect unlimited number of tweets (restricted by Twitter
+            at some point)
         onlyText : boolean, default False
             T/F to extract only text of tweet
         includeRetweet : boolean, default False
@@ -184,6 +199,17 @@ class TweetsGetter(object):
  
     @staticmethod
     def bySearch(keyword):
+        '''
+        Parameters
+        ----------
+        keyword : str
+            search query `q` given to Twitter search API
+
+        Returns
+        -------
+        TweetsGetterBySearch : class TweetsGetterBySearch
+            has method `collect` which is generator for searched tweets
+        '''
         return TweetsGetterBySearch(keyword)
  
     @staticmethod
@@ -207,7 +233,13 @@ class TweetsGetterBySearch(TweetsGetter):
         Returns
         -------
         url. params : Tuple[str, dict]
-            url to call and parameters
+            url
+                REST API url to call
+            params
+                q : str
+                    utf-8 search query (max 500 chrs)
+                count : int
+                    number of tweets to return (max 100)
         '''
         url = 'https://api.twitter.com/1.1/search/tweets.json?'
         params = {'q':self.keyword, 'count':100}
