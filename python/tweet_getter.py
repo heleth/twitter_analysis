@@ -7,6 +7,8 @@ Notes
 About Twitter Standard search API
     requests / 15-min (user auth) : 180
     requests / 15-min (app auth) : 450
+    not case sensitive
+    ';)' and ';(' seems to catch only similar expressions such as ':D' or ':-('
 '''
 
 
@@ -240,9 +242,11 @@ class TweetsGetterBySearch(TweetsGetter):
                     utf-8 search query (max 500 chrs)
                 count : int
                     number of tweets to return (max 100)
+                lang : str (optional)
+                    language of tweet
         '''
         url = 'https://api.twitter.com/1.1/search/tweets.json?'
-        params = {'q':self.keyword, 'count':100}
+        params = {'q':self.keyword, 'count':100, 'lang':'ja'}
         return url, params
  
     def pickupTweet(self, res_text):

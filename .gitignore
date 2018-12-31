@@ -1,2 +1,10 @@
+.DS_Store
+
 assets
+notes
 __pycache__/
+.ipynb_checkpoints
+*.swp
+
+
+
