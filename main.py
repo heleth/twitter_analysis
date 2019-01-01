@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from typing import List
 import datetime
+import pickle
+from typing import List
 
 import pandas as pd
 #from dateutil.parser import parse  # from sample code
@@ -17,65 +18,65 @@ with open('txt/performers_with_query_utf16.txt', 'r', encoding='utf-16') as f:
     performers = dict(line.strip('\n').split('\t', 1) for line in f)
     PERFORMERS = {k:[v for v in v.split('\t') if v != ''] for (k,v) in performers.items()}
 
-tweets_by_performer = pd.DataFrame(0,
-        index=range(len(PERFORMERS)),
-        columns=['performer', 'cnt','tweets'])
-for i, [performer, queries] in enumerate(PERFORMERS.items()):
-    if(False):
-        if (i>3):
+dict_tweets = {}
+for i, [performer, names] in enumerate(PERFORMERS.items()):
+    if (False):
+        if (i >= 3):
             break
-    created_at: List[str] = []
-    text: List[str] = []
+    # ------------------------------------------------------------------------
+    ## define class to get tweets
+    # ------------------------------------------------------------------------
+    query_names = 'OR'.join(['"'+name+'"' for name in names])
+    print('performer : {:<20}, name : {:<10}'.format(performer, query_names))
+    TOTAL = 1000000
+    PERIOD = [
+        {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_23:45:00_JST'},
+        {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_19:30:00_JST'},
+        ][0]
+    query_full = u'''{} AND
+    -filter:retweets AND
+    -filter:replies AND
+    since:{}
+    until:{}'''.format(query_names, PERIOD['since'], PERIOD['until'])
+    getter = TweetsGetter.bySearch(query_full)
 
-    for query in queries:
-        print('performer : {:<20}, query : {:<10}'.format(performer, query))
-        # ------------------------------------------------------------------------
-        ## define class to get tweets
-        # ------------------------------------------------------------------------
-        TOTAL = 100
-        WORD = query
-        PERIOD = [
-            {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_23:45:00_JST'},
-            {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_19:30:00_JST'},
-            {'since':'2018-12-31_00:00:00_JST', 'until':'2018-12-31_23:59:59_JST'},
-            {'since':'2018-12-31_00:00:00', 'until':'2018-12-31_23:59:59'},  # GST
-            ][1]
-        # --   '_JST' is correctly recognized by API
-        QUERY = u'''"{}" AND
-        -filter:retweets AND
-        -filter:replies AND
-        since:{}
-        until:{}'''.format(WORD, PERIOD['since'], PERIOD['until'])
-        getter = TweetsGetter.bySearch(QUERY)
+    # ------------------------------------------------------------------------
+    ## get tweets
+    # ------------------------------------------------------------------------
+    l_tweets_time = []
+    l_tweets_text = []
+    for j, tweet in enumerate(getter.collect(total = TOTAL)):
+        l_tweets_time.append(tweet['created_at'])
+        l_tweets_text.append(tweet['text'])
+        # --   created_at is GST
+        if (False):
+            print ('-- {:>4} of {:>4} --\n    id={}, time={}GST, by {}\n    {}'.format(
+                j+1,
+                TOTAL,
+                tweet['id'],
+                tweet['created_at'],
+                '@'+tweet['user']['screen_name'],
+                tweet['text'].split('\n', 1)[:]))
+    print('    {:>8} tweets colloected.'.format(j+1))
 
-        # ------------------------------------------------------------------------
-        ## get tweets
-        # ------------------------------------------------------------------------
-        for tweet in getter.collect(total = TOTAL):
-            created_at.append(tweet['created_at'])
-            # --   tweet['created_at'] is seen to be GST
-            text.append(tweet['text'])
-            if (False):
-                print ('-- {:>4} of {:>4} --\n    {} {} {}\n    {}'.format(
-                    len(text),
-                    TOTAL,
-                    tweet['id'],
-                    tweet['created_at'],
-                    '@'+tweet['user']['screen_name'],
-                    tweet['text'].split('\n', 1)[:]))
+    dict_tweets[performer] = pd.concat([
+        pd.Series(pd.to_datetime(l_tweets_time)).rename('tweet_time').dt.tz_localize('utc')\
+                .dt.tz_convert('Asia/Tokyo'),
+        # -- `l_tweets_time` is recognized as timezone='UTC'
+        # -- so, need to be converted to 'Asia/Tokyo' local time
+        pd.Series(l_tweets_text).rename('tweet_text'),], axis=1)
 
-    tweets_by_performer.loc[i, 'performer'] = performer
-    tweets_by_performer.loc[i, 'cnt'] = len(text)
-    tweets_by_performer.loc[i,'tweets'] = '|'.join(text).replace('\n', ' ')
-
-filename = 'txt/tweets_by_performer_' + datetime.datetime.now().strftime('%H%M') + '.tsv'
+filename = 'txt/dict_tweets_' + datetime.datetime.now().strftime('%d%H%M') +'.pickle'
+with open(filename, 'wb') as f:
+    pickle.dump(dict_tweets, f)
+#filename = 'txt/df_tweets_' + datetime.datetime.now().strftime('%H%M') + '.tsv'
+#pf_tweets.to_csv(filename, sep='\t')
 print('{} created.'.format(filename))
-tweets_by_performer.to_csv(filename, sep='\t')
 
 # -- test from sample code 1
-#getter = TweetsGetter.bySearch(u'"マジカルラブリー" AND -filter:retweets AND \
+#getter = TweetsGetter.bySearch(u'("マジカルラブリー" OR "とろサーモン") AND -filter:retweets AND \
 #        -filter:replies AND until:2018-12-31_22:05:00_JST')
-#TOTAL = 2
+#TOTAL = 10
 #created_at: List[str] = []
 #text: List[str] = []
 #for tweet in getter.collect(total = TOTAL):
@@ -90,7 +91,7 @@ tweets_by_performer.to_csv(filename, sep='\t')
 #            tweet['created_at'],
 #            '@'+tweet['user']['screen_name'],
 #            tweet['text'].split('\n', 1)[:]))
-
+#
 # -- test from sample code 2
 #getter = TweetsGetter.byUser('AbeShinzo')
 #TOTAL = 2

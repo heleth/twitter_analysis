@@ -139,8 +139,8 @@ class TweetsGetter(object):
                         yield tweet
 
                     cnt += 1
-                    if cnt % 100 == 0:
-                        print ('%d件 ' % cnt)
+                    if cnt % 10000 == 0:
+                        print ('{:>8} tweets'.format(cnt))
 
                     if total > 0 and cnt >= total:
                         return

@@ -3,8 +3,11 @@
 assets
 notes
 __pycache__/
+
 .ipynb_checkpoints
 *.swp
+*.tsv
+*.pickle
 
 
 
