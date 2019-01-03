@@ -1,7 +1,9 @@
 .DS_Store
 
 assets
-notes
+sample
+log
+figure
 __pycache__/
 
 .ipynb_checkpoints

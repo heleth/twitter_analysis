@@ -27,8 +27,7 @@ for i, [performer, names] in enumerate(PERFORMERS.items()):
     ## define class to get tweets
     # ------------------------------------------------------------------------
     query_names = 'OR'.join(['"'+name+'"' for name in names])
-    print('performer : {:<20}, name : {:<10}'.format(performer, query_names))
-    TOTAL = 1000000
+    TOTAL = [1000000, 5][0]
     PERIOD = [
         {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_23:45:00_JST'},
         {'since':'2018-12-31_19:15:00_JST', 'until':'2018-12-31_19:30:00_JST'},
@@ -38,11 +37,17 @@ for i, [performer, names] in enumerate(PERFORMERS.items()):
     -filter:replies AND
     since:{}
     until:{}'''.format(query_names, PERIOD['since'], PERIOD['until'])
+#    query_full = u'''{} AND "紅白" AND
+#    -filter:retweets AND
+#    -filter:replies AND
+#    since:{}
+#    until:{}'''.format(query_names, PERIOD['since'], PERIOD['until'])
     getter = TweetsGetter.bySearch(query_full)
 
     # ------------------------------------------------------------------------
     ## get tweets
     # ------------------------------------------------------------------------
+    print('performer : {:<20}, name : {:<10}'.format(performer, query_names))
     l_tweets_time = []
     l_tweets_text = []
     for j, tweet in enumerate(getter.collect(total = TOTAL)):
