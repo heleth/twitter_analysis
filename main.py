@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+get tweets related to performers of 2018年紅白歌合戦 tweeted during the show
+
+outputs
+-------
+pickle file of dict[DataFrame] of tweets
+    - 1 DataFrame for 1 performer
+"""
 
 import datetime
 import pickle
@@ -19,9 +27,6 @@ with open('txt/performers_with_query_utf16.txt', 'r', encoding='utf-16') as f:
 
 dict_tweets = {}
 for i, [performer, names] in enumerate(PERFORMERS.items()):
-    if (False):
-        if (i >= 3):
-            break
     # ------------------------------------------------------------------------
     ## define class to get tweets
     # ------------------------------------------------------------------------
@@ -70,12 +75,18 @@ for i, [performer, names] in enumerate(PERFORMERS.items()):
         # -- so, need to be converted to 'Asia/Tokyo' local time
         pd.Series(l_tweets_text).rename('tweet_text'),], axis=1)
 
+# ------------------------------------------------------------------------
+## store tweet-data in pickle file
+# ------------------------------------------------------------------------
 filename = 'txt/dict_tweets_' + datetime.datetime.now().strftime('%d%H%M') +'.pickle'
 with open(filename, 'wb') as f:
     pickle.dump(dict_tweets, f)
-#filename = 'txt/df_tweets_' + datetime.datetime.now().strftime('%H%M') + '.tsv'
-#pf_tweets.to_csv(filename, sep='\t')
 print('{} created.'.format(filename))
+
+
+# ------------------------------------------------------------------------
+## test code
+# ------------------------------------------------------------------------
 
 # -- test from sample code 1
 #getter = TweetsGetter.bySearch(u'("マジカルラブリー" OR "とろサーモン") AND -filter:retweets AND \
