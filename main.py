@@ -5,7 +5,6 @@ import pickle
 from typing import List
 
 import pandas as pd
-#from dateutil.parser import parse  # from sample code
 
 from python.tweet_getter import TweetsGetter
 

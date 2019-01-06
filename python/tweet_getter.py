@@ -1,18 +1,20 @@
-'''
-provide 1 parent class and 2 child classes to extract tweets from Twitter
+"""
+module tweet_getter.py
+
+provide convenient classes to extract tweets from Twitter
 Standard search API.
 
 Notes
 -----
-About Twitter Standard search API
+Notes about Twitter Standard search API
+    ref -> https://developer.twitter.com/en/docs/tweets/search/api-reference/get-search-tweets.html
     requests / 15-min (user auth) : 180
     requests / 15-min (app auth) : 450
     not case sensitive
     ';)' and ';(' seems to catch only similar expressions such as ':D' or ':-('
-'''
+"""
 
 
-from typing import Tuple
 from abc import ABCMeta, abstractmethod  # for using abstrach base class
 import datetime, time, sys
 
@@ -21,13 +23,21 @@ from requests_oauthlib import OAuth1Session
 
 
 class TweetsGetter(object):
-    '''
+    """
     abstract base class
-        - inherited by TweetsGetterBySearh and TweetGetterByUser
-    '''
+        - inherited by 2 child class: TweetsGetterBySearh and TweetGetterByUser
+
+    preparation to use
+    ------------------
+        - place your API-key in `./assets/twitter_account.txt`
+          **keep this file SECRET**
+    """
     __metaclass__ = ABCMeta
 
     def __init__(self):
+        """
+        read API-key information from file
+        """
         with open('./assets/twitter_account.txt', 'r') as f:
             API = dict(line.strip().split('\t')[:2] for line in f)
         self.session = OAuth1Session(
@@ -38,33 +48,60 @@ class TweetsGetter(object):
 
     @abstractmethod
     def specifyUrlAndParams(self, keyword):
-        '''
+        """
+        abstract method to prepare parameters
+        (implemented in a child class)
+
         Returns
         -------
         url, params : Tuple[str, dict]
-            url to call, parameters
-
-        Notes
-        -----
-        These methods are abstact method.
-        So they are implemented in child classes.
-        '''
+            url
+                REST API url to call
+            params
+                packed parameters
+        """
 
     @abstractmethod
     def pickupTweet(self, res_text, includeRetweet):
-        '''
-        res_text からツイートを取り出し、配列にセットして返却
-        '''
+        """
+        extract tweets from res_text
+
+        parameters
+        ----------
+        res_text : str
+            RES (representational state) got from REST API
+
+        returns
+        -------
+        results : list[str]
+            list of tweet
+
+        notes
+        -----
+        structures of res_text differ between bysearch and byuser.
+        """
 
     @abstractmethod
     def getLimitContext(self, res_text):
-        '''
-        回数制限の情報を取得 （起動時）
-        '''
+        """
+        extract API's request-limit information from RES text
+
+        Parameters
+        ----------
+        res_text : json.loads()
+            parsed json
+
+        Returns
+        -------
+        remaining : int
+            current remaining request-limit (ex. 180)
+        reset : int
+            next reset time of requeset-limit (ex. 1403602426)
+        """
 
     def collect(self, total = -1, onlyText = False, includeRetweet = False):
-        '''
-        ツイート取得を開始する
+        """
+        return 1-by-1 generator of tweet
 
         Parameters
         ----------
@@ -79,13 +116,12 @@ class TweetsGetter(object):
 
         Returns
         -------
-        act as a generator of tweet
-            generate extracted tweet 1 by 1
+        1-by-1 generator of tweet
 
         Notes
         -----
-        This function sometimes spend minutes waiting api's call-limit to end
-        '''
+        This function sometimes sleep for minutes waiting api's call-limit to end
+        """
 
         #----------------
         # check api's call limit
@@ -154,16 +190,16 @@ class TweetsGetter(object):
                     self.waitUntilReset(int(res.headers['X-Rate-Limit-Reset']))
                     self.checkLimit()
             else:
-                print ('not found  -  X-Rate-Limit-Remaining or X-Rate-Limit-Reset')
                 self.checkLimit()
 
     def checkLimit(self):
-        '''
-        回数制限を問合せ、アクセス可能になるまで wait する
-        '''
+        """
+        check current request-limit, and wait until it resets if necessary
+        """
         unavailableCnt = 0
         while True:
             url = "https://api.twitter.com/1.1/application/rate_limit_status.json"
+            # --   url : URL of `rate limit status API`
             res = self.session.get(url)
  
             if res.status_code == 503:
@@ -188,20 +224,18 @@ class TweetsGetter(object):
                 break
  
     def waitUntilReset(self, reset):
-        '''
-        reset 時刻まで sleep
-        '''
+        """
+        sleep until request-limit resets
+        """
         seconds = reset - time.mktime(datetime.datetime.now().timetuple())
         seconds = max(seconds, 0)
-        print ('\n     =====================')
-        print ('     == waiting %d sec ==' % seconds)
-        print ('     =====================')
+        print (' -- waiting for %d sec -- ' % seconds)
         sys.stdout.flush()
         time.sleep(seconds + 10)  # 念のため + 10 秒
  
     @staticmethod
     def bySearch(keyword):
-        '''
+        """
         Parameters
         ----------
         keyword : str
@@ -211,7 +245,7 @@ class TweetsGetter(object):
         -------
         TweetsGetterBySearch : class TweetsGetterBySearch
             has method `collect` which is generator for searched tweets
-        '''
+        """
         return TweetsGetterBySearch(keyword)
  
     @staticmethod
@@ -220,16 +254,16 @@ class TweetsGetter(object):
 
 
 class TweetsGetterBySearch(TweetsGetter):
-    '''
-    child class of TweetsGetter
-       search tweets by keyword
-    '''
+    """
+    extract tweets searched by selected query
+        - child class of TweetsGetter
+    """
     def __init__(self, keyword):
         super(TweetsGetterBySearch, self).__init__()
         self.keyword = keyword
 
     def specifyUrlAndParams(self):
-        '''
+        """
         return url to call and parameters
 
         Returns
@@ -244,65 +278,103 @@ class TweetsGetterBySearch(TweetsGetter):
                     number of tweets to return (max 100)
                 lang : str (optional)
                     language of tweet
-        '''
+        """
         url = 'https://api.twitter.com/1.1/search/tweets.json?'
         params = {'q':self.keyword, 'count':100, 'lang':'ja'}
         return url, params
  
     def pickupTweet(self, res_text):
-        '''
+        """
         extract tweets from res_text and return them as a list
 
-        Parameters
+        parameters
         ----------
         res_text : str
             res (representational state) got from api
 
-        Returns
+        returns
         -------
-        results : List[str]
+        results : list[str]
             list of tweet
 
-        Notes
+        notes
         -----
-        Structures of res_text differ between BySearch and ByUser.
-        '''
+        structures of res_text differ between bysearch and byuser.
+        """
         results = []
         for tweet in res_text['statuses']:
             results.append(tweet)
- 
+
         return results
- 
+
     def getLimitContext(self, res_text):
-        '''
-        回数制限の情報を取得 （起動時）
-        '''
+        """
+        extract API's request-limit information from RES text
+
+        Parameters
+        ----------
+        res_text : json.loads()
+            parsed json
+
+        Returns
+        -------
+        remaining : int
+            current remaining request-limit (ex. 180)
+        reset : int
+            next reset time of requeset-limit (ex. 1403602426)
+        """
         remaining = res_text['resources']['search']['/search/tweets']['remaining']
         reset     = res_text['resources']['search']['/search/tweets']['reset']
- 
+
         return int(remaining), int(reset)
 
 
 class TweetsGetterByUser(TweetsGetter):
-    '''
-    ユーザーを指定してツイートを取得
-    '''
+    """
+    extract tweets of selected user
+        - child class of TweetsGetter
+    """
     def __init__(self, screen_name):
         super(TweetsGetterByUser, self).__init__()
         self.screen_name = screen_name
-        
+
     def specifyUrlAndParams(self):
-        '''
-        呼出し先 URL、パラメータを返す
-        '''
+        """
+        return url to call and parameters
+
+        Returns
+        -------
+        url. params : Tuple[str, dict]
+            url
+                REST API url to call
+            params
+                screen_name : str
+                    twitter user name (exclude '@')
+                count : int
+                    number of tweets to return (max 200)
+        """
         url = 'https://api.twitter.com/1.1/statuses/user_timeline.json'
         params = {'screen_name':self.screen_name, 'count':200}
         return url, params
  
     def pickupTweet(self, res_text):
-        '''
-        res_text からツイートを取り出し、配列にセットして返却
-        '''
+        """
+        extract tweets from res_text and return them as a list
+
+        parameters
+        ----------
+        res_text : str
+            res (representational state) got from api
+
+        returns
+        -------
+        results : list[str]
+            list of tweet
+
+        notes
+        -----
+        structures of res_text differ between bysearch and byuser.
+        """
         results = []
         for tweet in res_text:
             results.append(tweet)
@@ -310,9 +382,21 @@ class TweetsGetterByUser(TweetsGetter):
         return results
  
     def getLimitContext(self, res_text):
-        '''
-        回数制限の情報を取得 （起動時）
-        '''
+        """
+        extract API's request-limit information from RES text
+
+        Parameters
+        ----------
+        res_text : json.loads()
+            parsed json
+
+        Returns
+        -------
+        remaining : int
+            current remaining request-limit (ex. 180)
+        reset : int
+            next reset time of requeset-limit (ex. 1403602426)
+        """
         remaining = res_text['resources']['statuses']['/statuses/user_timeline']['remaining']
         reset     = res_text['resources']['statuses']['/statuses/user_timeline']['reset']
  
